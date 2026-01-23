@@ -106,7 +106,11 @@ class BatchProcessor:
                     file_key = info["file_key"]
                     if file_key in presigned_urls:
                         upload_pairs.append(
-                            (info["file_path"], presigned_urls[file_key])
+                            (
+                                info["file_path"],
+                                presigned_urls[file_key],
+                                info["ftp_username"],
+                            )
                         )
                     else:
                         logger.warning(f"No presigned URL for file: {file_key}")

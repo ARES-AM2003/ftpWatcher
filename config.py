@@ -21,6 +21,9 @@ class Config:
     API_UPLOADS_BASE_URL: str = os.getenv(
         "API_UPLOADS_BASE_URL", "https://api.fotosfolio.com"
     )
+    API_ZIP_BASE_URL: str = os.getenv(
+        "API_ZIP_BASE_URL", "https://zip.fotosfolio.com"
+    )
     API_AUTH_TOKEN: str = os.getenv("API_AUTH_TOKEN", "")
     API_TIMEOUT: int = int(os.getenv("API_TIMEOUT", "30"))
 

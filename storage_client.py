@@ -37,7 +37,11 @@ class StorageClient:
             await self.session.close()
 
     async def upload_file_stream(
-        self, file_path: Path, presigned_url: str, max_retries: Optional[int] = None
+        self,
+        file_path: Path,
+        presigned_url: str,
+        max_retries: Optional[int] = None,
+        ftp_username: Optional[str] = None,
     ) -> bool:
         """
         Upload a file to S3 using presigned URL with streaming.
@@ -46,9 +50,7 @@ class StorageClient:
             file_path: Path to the file to upload
             presigned_url: Presigned URL for upload
             max_retries: Maximum retry attempts (uses Config.MAX_RETRIES if not provided)
-
-        Returns:
-            True if upload successful, False otherwise
+            ftp_username: FTP username (camera name) for permission fixes
         """
         if max_retries is None:
             max_retries = Config.MAX_RETRIES
@@ -82,6 +84,29 @@ class StorageClient:
 
             except (aiohttp.ClientError, OSError) as e:
                 last_exception = e
+
+                # Check specifically for Permission Denied (Errno 13)
+                import errno
+
+                is_permission_error = False
+                if isinstance(e, PermissionError) or (
+                    isinstance(e, OSError) and e.errno == errno.EACCES
+                ):
+                    is_permission_error = True
+
+                if is_permission_error and ftp_username:
+                    logger.warning(
+                        f"Permission denied for {file_name}. Triggering API fix for camera: {ftp_username}"
+                    )
+                    try:
+                        # Use a temporary APIClient to call the fix endpoint
+                        from api_client import APIClient
+
+                        async with APIClient() as api_client:
+                            await api_client.fix_permissions(ftp_username)
+                        logger.info(f"Permission fix request sent for {ftp_username}")
+                    except Exception as fix_err:
+                        logger.error(f"Failed to trigger permission fix: {fix_err}")
 
                 if attempt < max_retries:
                     delay = Config.RETRY_INITIAL_DELAY * (
@@ -132,13 +157,15 @@ class StorageClient:
             yield chunk
 
     async def upload_files_parallel(
-        self, file_uploads: list[tuple[Path, str]], max_concurrent: Optional[int] = None
+        self,
+        file_uploads: list[tuple[Path, str, str]],
+        max_concurrent: Optional[int] = None,
     ) -> dict[str, bool]:
         """
         Upload multiple files in parallel with concurrency control.
 
         Args:
-            file_uploads: List of (file_path, presigned_url) tuples
+            file_uploads: List of (file_path, presigned_url, ftp_username) tuples
             max_concurrent: Maximum concurrent uploads (uses Config.MAX_CONCURRENT_UPLOADS if not provided)
 
         Returns:
@@ -150,16 +177,20 @@ class StorageClient:
         semaphore = asyncio.Semaphore(max_concurrent)
         results = {}
 
-        async def upload_with_semaphore(file_path: Path, presigned_url: str):
+        async def upload_with_semaphore(
+            file_path: Path, presigned_url: str, ftp_username: str
+        ):
             async with semaphore:
-                success = await self.upload_file_stream(file_path, presigned_url)
+                success = await self.upload_file_stream(
+                    file_path, presigned_url, ftp_username=ftp_username
+                )
                 results[str(file_path)] = success
                 return success
 
         # Create tasks for all uploads
         tasks = [
-            upload_with_semaphore(file_path, presigned_url)
-            for file_path, presigned_url in file_uploads
+            upload_with_semaphore(file_path, presigned_url, ftp_username)
+            for file_path, presigned_url, ftp_username in file_uploads
         ]
 
         # Wait for all uploads to complete
