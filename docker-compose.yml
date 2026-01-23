@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  ftp-processor:
+    build: .
+    container_name: ftp-file-processor
+    restart: unless-stopped
+
+    # Environment file (create this with your settings)
+    env_file:
+      - .env
+
+    volumes:
+      # REQUIRED: Mount your FTP directory (READ-ONLY recommended)
+      # Change /path/to/your/ftp to your actual FTP directory
+      - /path/to/your/ftp:/ftp_root:ro
+
+      # Optional: Mount logs directory to host for easier access
+      - ./logs:/app/logs
+
+    # Optional: Set timezone
+    environment:
+      - TZ=UTC
+
+    # Health check
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sys; from pathlib import Path; sys.exit(0 if Path('main.py').exists() else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Network mode (use host if you need to access local FTP server)
+    # network_mode: "host"
+
+    # Or use bridge network (default)
+    networks:
+      - processor-network
+
+networks:
+  processor-network:
+    driver: bridge
