@@ -28,7 +28,8 @@ COPY main.py config.py logger.py watcher.py processor.py \
 # Create group with GID 1005 and user with UID 1005 in that group
 RUN groupadd -g 1005 ftpUsers && \
     useradd -m -u 1005 -g 1005 -s /bin/bash ftpprocessor && \
-    chown -R ftpprocessor:ftpUsers /app && \
+    chown -R ftpprocessor:ftpUsers /app
+
 # Create mount points for host directories
 RUN mkdir -p /opt/ftp /srv/ftp && \
     chown ftpprocessor:ftpUsers /opt/ftp /srv/ftp
