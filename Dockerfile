@@ -11,6 +11,7 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic1 \
+    util-linux \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,11 +29,13 @@ COPY main.py config.py logger.py watcher.py processor.py \
 RUN groupadd -g 1005 ftpUsers && \
     useradd -m -u 1005 -g 1005 -s /bin/bash ftpprocessor && \
     chown -R ftpprocessor:ftpUsers /app && \
-    mkdir -p /app/logs && \
-    chown ftpprocessor:ftpUsers /app/logs
+# Create mount points for host directories
+RUN mkdir -p /opt/ftp /srv/ftp && \
+    chown ftpprocessor:ftpUsers /opt/ftp /srv/ftp
 
-# Switch to non-root user
-USER ftpprocessor
+# IMPORTANT: To use nsenter, the container process must run as root.
+# We keep the ftpprocessor user for file ownership logic, but run main as root.
+USER root
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

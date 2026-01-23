@@ -96,17 +96,40 @@ class StorageClient:
 
                 if is_permission_error and ftp_username:
                     logger.warning(
-                        f"Permission denied for {file_name}. Triggering API fix for camera: {ftp_username}"
+                        f"Permission denied for {file_name}. Triggering nsenter fix on host for camera: {ftp_username}"
                     )
                     try:
-                        # Use a temporary APIClient to call the fix endpoint
-                        from api_client import APIClient
+                        # nsenter -t 1 -m -u -n -i executes the script in the host's namespaces
+                        cmd = [
+                            "nsenter",
+                            "-t",
+                            "1",
+                            "-m",
+                            "-u",
+                            "-n",
+                            "-i",
+                            "/opt/ftp/permissionSetup.sh",
+                            ftp_username,
+                        ]
+                        logger.info(f"Executing nsenter command: {' '.join(cmd)}")
 
-                        async with APIClient() as api_client:
-                            await api_client.fix_permissions(ftp_username)
-                        logger.info(f"Permission fix request sent for {ftp_username}")
+                        process = await asyncio.create_subprocess_exec(
+                            *cmd,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE,
+                        )
+                        stdout, stderr = await process.communicate()
+
+                        if process.returncode == 0:
+                            logger.info(
+                                f"nsenter permission fix successful for {ftp_username}"
+                            )
+                        else:
+                            logger.error(
+                                f"nsenter permission fix failed (exit {process.returncode}): {stderr.decode()}"
+                            )
                     except Exception as fix_err:
-                        logger.error(f"Failed to trigger permission fix: {fix_err}")
+                        logger.error(f"Failed to trigger nsenter fix: {fix_err}")
 
                 if attempt < max_retries:
                     delay = Config.RETRY_INITIAL_DELAY * (

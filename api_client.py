@@ -298,26 +298,3 @@ class APIClient:
         logger.info(f"Metadata saved successfully for {len(files_metadata)} files")
         logger.info(f"API Response: {response}")
         return response
-
-    async def fix_permissions(self, ftp_username: str) -> Dict[str, Any]:
-        """
-        Trigger backend to fix permissions for a specific camera/folder.
-
-        Args:
-            ftp_username: The camera name/subfolder
-
-        Returns:
-            Response data
-        """
-        zip_base_url = Config.API_ZIP_BASE_URL.rstrip("/")
-        url = f"{zip_base_url}/zip/permission/{ftp_username}"
-
-        logger.info(f"Triggering permission fix for camera: {ftp_username}")
-        logger.info(f"Fix permissions URL: {url}")
-
-        # Note: Using GET as per user's URL structure example, but could be POST
-        # If it needs auth or specific method, it can be adjusted here
-        response = await self._retry_request("GET", url, require_auth=False)
-
-        logger.info(f"Permission fix result for {ftp_username}: {response}")
-        return response
