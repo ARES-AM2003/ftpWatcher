@@ -246,7 +246,7 @@ class BatchProcessor:
                 "downloadUrl": s3_url,
                 "nativeUrl": s3_url,
                 "s3Url": s3_url,
-                "folder": f"{info['username_userid']}/ftp/{info['ftp_username']}",
+                "folder": f"Original/{info['username_userid']}/ftp/{info['ftp_username']}",
                 "filesize": info["file_size"] / (1024**3),  # Convert to GB
                 "folderId": "ftp",  # Set if you have folder IDs
                 "userId": info["user_id"],

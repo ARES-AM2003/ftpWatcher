@@ -104,7 +104,7 @@ def generate_file_key(username_userid: str, ftp_username: str, filename: str) ->
     """
     Generate S3 object key for a file.
 
-    Format: username_userid/ftp/ftpusername/filename
+    Format: Original/username_userid/ftp/ftpusername/filename
 
     Args:
         username_userid: Combined username and user ID
@@ -114,7 +114,7 @@ def generate_file_key(username_userid: str, ftp_username: str, filename: str) ->
     Returns:
         S3 object key
     """
-    return f"{username_userid}/ftp/{ftp_username}/{filename}"
+    return f"Original/{username_userid}/ftp/{ftp_username}/{filename}"
 
 
 def calculate_file_hash(file_path: Path, algorithm: str = "md5") -> str:

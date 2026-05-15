@@ -48,7 +48,7 @@ def test_get_mime_type():
 def test_generate_file_key():
     """Test S3 file key generation."""
     key = generate_file_key("john_123", "camera1", "test.jpg")
-    assert key == "john_123/ftp/camera1/test.jpg"
+    assert key == "Original/john_123/ftp/camera1/test.jpg"
 
 
 def test_format_bytes():
