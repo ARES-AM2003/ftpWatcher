@@ -250,7 +250,8 @@ class BatchProcessor:
                 "filesize": info["file_size"] / (1024**3),  # Convert to GB
                 "folderId": "ftp",  # Set if you have folder IDs
                 "userId": info["user_id"],
-                "projectId": "ftp",  # Set if you have project IDs
+                # Use the FTP username (last folder segment) as the projectId
+                "projectId": info["ftp_username"],
             }
 
             metadata_list.append(metadata)

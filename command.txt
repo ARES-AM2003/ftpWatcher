@@ -1,0 +1,35 @@
+# Docker build, push, run and inspect commands for ares2003/ftpworker:latest
+
+# 1) Build image locally
+docker build -t ares2003/ftpworker:latest .
+
+# 3) Push to Docker Hub (ensure you're logged in)
+docker push ares2003/ftpworker:latest
+docker pull ares2003/ftpworker:latest
+docker stop ftpworker
+docker rm ftpworker
+# 4) Run container (background, privileged, mounts and restart policy)
+docker run -d \
+  --name ftpworker \
+  --privileged \
+  --restart unless-stopped \
+  -v /opt/ftp:/opt/ftp \
+  -v /opt/ftp/.env:/app/.env \
+  -v /srv/ftp:/srv/ftp \
+  ares2003/ftpworker:latest
+
+# If you need to run with a specific working dir, command, or environment variables
+# docker run -d --name ftpworker --privileged --restart unless-stopped \
+#   -v /opt/ftp:/opt/ftp -v /opt/ftp/.env:/app/.env -v /srv/ftp:/srv/ftp \
+#   -w /app \
+#   ares2003/ftpworker:latest python -u main.py
+
+# 5) Inspect the running container
+docker inspect ftpworker
+
+# 6) View container logs (follow)
+docker logs -f ftpworker
+
+# 7) Common maintenance commands
+docker ps -a
+docker image ls ares2003/ftpworker:latest

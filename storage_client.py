@@ -12,7 +12,7 @@ import aiohttp
 
 from config import Config
 from logger import get_logger
-from utils import format_bytes
+from utils import format_bytes, get_mime_type
 
 logger = get_logger(__name__)
 
@@ -66,10 +66,17 @@ class StorageClient:
             try:
                 # Stream file upload
                 async with aiofiles.open(file_path, "rb") as f:
-                    # Read file in chunks and upload
+                    # Prepare headers to avoid chunked transfer (S3 expects Content-Length)
+                    headers = {
+                        "Content-Length": str(file_size),
+                        "Content-Type": get_mime_type(file_path),
+                    }
+
+                    # Read file in chunks and upload; provide Content-Length to prevent 411
                     async with self.session.put(
                         presigned_url,
                         data=self._file_chunk_generator(f, file_size, file_name),
+                        headers=headers,
                     ) as response:
                         response.raise_for_status()
 
