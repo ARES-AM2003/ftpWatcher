@@ -185,47 +185,10 @@ class APIClient:
         logger.info(f"Raw response type: {type(response)}")
         logger.info(f"Raw response content: {response}")
 
-        # Handle different response formats
         try:
-            if isinstance(response, str):
-                # Response is a string - this is unexpected, log and raise error
-                logger.error(f"API returned string instead of JSON: {response[:200]}")
-                raise ValueError(
-                    f"Presigned URLs API returned a string instead of JSON. "
-                    f"This usually means an error page or unexpected response. "
-                    f"Response preview: {response[:200]}"
-                )
-            elif isinstance(response, list):
-                logger.info(f"Response is a list with {len(response)} items")
-
-                # Check if list contains strings (URLs) or objects
-                if response and isinstance(response[0], str):
-                    # Response is a list of URL strings in the same order as request
-                    logger.info("Response is a list of URL strings")
-                    if len(response) != len(files_info):
-                        raise ValueError(
-                            f"Response length ({len(response)}) doesn't match request length ({len(files_info)})"
-                        )
-                    # Map fileName to URL based on order
-                    presigned_urls = {
-                        files_info[i]["fileName"]: response[i]
-                        for i in range(len(response))
-                    }
-                else:
-                    # Response is a list of objects with fileName and url
-                    logger.info("Response is a list of objects")
-                    presigned_urls = {}
-                    for item in response:
-                        logger.debug(f"Processing item: {item}")
-                        presigned_urls[item["fileName"]] = item["url"]
-            elif isinstance(response, dict):
-                # Response might have 'urls' key or be flat dict
-                logger.info("Response is a dict")
-                presigned_urls = response.get("urls", response)
-            else:
-                raise ValueError(
-                    f"Unexpected response format for presigned URLs: {type(response)}, value: {response}"
-                )
+            presigned_urls = self._normalize_presigned_urls_response(
+                response, files_info
+            )
         except (KeyError, TypeError, IndexError) as e:
             logger.error(f"Error parsing response: {e}")
             logger.error(f"Response structure: {response}")
@@ -241,6 +204,69 @@ class APIClient:
         logger.info(f"Received {len(presigned_urls)} presigned URLs")
         logger.debug(f"Presigned URLs mapping: {presigned_urls}")
         return presigned_urls
+
+    def _normalize_presigned_urls_response(
+        self, response: Any, files_info: List[Dict[str, str]]
+    ) -> Dict[str, str]:
+        """Normalize the presigned-URL API response into a fileName -> URL mapping."""
+        if isinstance(response, str):
+            logger.error(f"API returned string instead of JSON: {response[:200]}")
+            raise ValueError(
+                f"Presigned URLs API returned a string instead of JSON. "
+                f"This usually means an error page or unexpected response. "
+                f"Response preview: {response[:200]}"
+            )
+
+        if isinstance(response, dict):
+            logger.info("Response is a dict")
+            presigned_urls = response.get("urls", response)
+            if not isinstance(presigned_urls, dict):
+                raise ValueError(
+                    f"Expected dict of presigned URLs, got: {type(presigned_urls)}"
+                )
+            return presigned_urls
+
+        if isinstance(response, list):
+            logger.info(f"Response is a list with {len(response)} items")
+
+            if not response:
+                return {}
+
+            if len(response) != len(files_info):
+                raise ValueError(
+                    f"Response length ({len(response)}) doesn't match request length ({len(files_info)})"
+                )
+
+            presigned_urls = {}
+            for index, item in enumerate(response):
+                logger.debug(f"Processing item: {item}")
+
+                if isinstance(item, str):
+                    presigned_urls[files_info[index]["fileName"]] = item
+                    continue
+
+                if not isinstance(item, dict):
+                    raise TypeError(f"Unexpected list item type: {type(item)}")
+
+                if "fileName" in item and "url" in item:
+                    presigned_urls[item["fileName"]] = item["url"]
+                    continue
+
+                if item.get("status") == "fulfilled" and "value" in item:
+                    presigned_urls[files_info[index]["fileName"]] = item["value"]
+                    continue
+
+                if "value" in item:
+                    presigned_urls[files_info[index]["fileName"]] = item["value"]
+                    continue
+
+                raise KeyError("url")
+
+            return presigned_urls
+
+        raise ValueError(
+            f"Unexpected response format for presigned URLs: {type(response)}, value: {response}"
+        )
 
     async def commit_storage(self, reservation_id: str) -> Dict[str, Any]:
         """
